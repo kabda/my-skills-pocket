@@ -142,7 +142,7 @@ Output the report by filling in only the `{PLACEHOLDER}` values below. Repeat fi
 
 ### Zero-issues report
 
-If all 4 subagents return empty findings, output:
+If all 2 subagents return empty findings, output:
 
 ```
 ============================================================
