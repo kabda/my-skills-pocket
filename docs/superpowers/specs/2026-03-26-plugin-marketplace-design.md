@@ -54,7 +54,7 @@ Valid categories (from official marketplace): `development`, `productivity`, `te
 
 ### `plugins/<name>/.claude-plugin/plugin.json`
 
-Plugin metadata. Required fields: `name`, `description`. Recommended: `version` (semver), `author`, `homepage`.
+Plugin metadata. Required fields: `name`, `description`. Recommended: `version` (semver), `author`, `homepage`. Optional: `repository`, `license`, `keywords` (array of strings, aids discovery).
 
 ```json
 {
@@ -64,7 +64,10 @@ Plugin metadata. Required fields: `name`, `description`. Recommended: `version` 
   "author": {
     "name": "fanyuandong"
   },
-  "homepage": "https://github.com/fanyuandong/my-skills-pocket/tree/main/plugins/plugin-name"
+  "homepage": "https://github.com/fanyuandong/my-skills-pocket/tree/main/plugins/plugin-name",
+  "repository": "https://github.com/fanyuandong/my-skills-pocket",
+  "license": "MIT",
+  "keywords": ["skills", "productivity"]
 }
 ```
 
@@ -74,16 +77,16 @@ Plugin metadata. Required fields: `name`, `description`. Recommended: `version` 
 2. Write `.claude-plugin/plugin.json`
 3. Add content: `skills/`, `commands/`, `agents/`, `hooks/`, `.mcp.json` as needed
 4. Append entry to `.claude-plugin/marketplace.json` `plugins` array
-5. `git commit && git push` — users pull and see the new plugin
+5. `git commit && git push` — Claude Code fetches the updated marketplace on the next `/plugin` operation
 
-**Versioning:** `version` in `plugin.json` is human-readable semver. Claude Code tracks versions via git commit SHA internally.
+**Versioning:** `version` in `plugin.json` is the canonical human-readable semver. The `version` field in the marketplace entry is optional; Claude Code tracks versions via git commit SHA internally.
 
 ## Plugin Content Conventions
 
 - `skills/` — one `.md` file per skill; filename = skill name
 - `commands/` — one file per command; filename = command name (no `/` prefix)
 - `agents/` — agent definition files
-- `hooks/` — executable scripts invoked by Claude Code hook system
+- `hooks/` — hook scripts; hooks must be explicitly registered (see Claude Code plugin docs for hook registration in `plugin.json` or a hooks config file)
 
 ## Initial State
 
@@ -104,7 +107,7 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-Then install a plugin:
+Then run `/plugin` (or `/plugin list`) to trigger a marketplace refresh, then install a plugin:
 
 ```
 /plugin install <plugin-name>@my-skills-pocket
