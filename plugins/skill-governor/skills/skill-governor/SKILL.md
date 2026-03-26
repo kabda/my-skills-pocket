@@ -12,116 +12,77 @@ Diagnostic audit of all installed Claude Code skills. Detects four problem types
 ```dot
 digraph phases {
   rankdir=LR;
-  "Phase 1\nDiscover & Index" -> "Phase 2\n4 Parallel Subagents" -> "Phase 3\nMerge & Report";
+  "Phase 1\nDiscover & Index" -> "Phase 2\n2 Parallel Subagents" -> "Phase 3\nMerge & Report";
 }
 ```
 
 ## Phase 1: Discover & Index (you execute this directly)
 
-### Step 1: Find all SKILL.md files
+### Step 1: Run the scan script
 
-Glob may truncate results for large directories. Scan per-suite to ensure complete coverage:
+~~~bash
+# Find the installed script (version-agnostic):
+SCAN=$(ls ~/.claude/plugins/cache/my-skills-pocket/skill-governor/*/scripts/scan.py 2>/dev/null | sort -V | tail -1)
+python3 "$SCAN"
+~~~
 
-```bash
-# Run one Glob per top-level suite directory to avoid truncation:
-~/.claude/plugins/cache/claude-plugins-official/**/SKILL.md
-~/.claude/plugins/cache/anthropic-agent-skills/**/SKILL.md
-~/.claude/plugins/cache/thedotmack/**/SKILL.md
-~/.claude/plugins/cache/ui-ux-pro-max-skill/**/SKILL.md
+Or from the project source:
+~~~bash
+python3 <path-to-skill-governor-plugin>/scripts/scan.py
+~~~
+
+The script outputs a JSON object with:
+- `skills`: all installed skills with name, description, suite, plugin, path, body_preview (first 50 lines after frontmatter)
+- `commands`, `agents`, `hooks`, `mcps`: other installed components
+- `findings`: mechanical issues already detected (same-name cross-suite duplicates, missing reference files)
+
+### Step 2: Parse the JSON output
+
+Read the script output. The `findings` array already contains confirmed issues — include them directly in the final report without re-analysis.
+
+### Step 3: Build the semantic index
+
+From the `skills` array, format the index table for Phase 2 subagents:
+
 ```
-
-If any of the above patterns return zero results, also run a catch-all:
-```
-~/.claude/plugins/cache/**/SKILL.md
-```
-
-Merge all results and deduplicate by full path.
-
-### Step 2: Validate and extract metadata
-
-For each SKILL.md found, Read the first 10 lines. A valid skill file must:
-- Start with YAML frontmatter (`---` on line 1)
-- Contain a `name:` field
-- Contain a `description:` field
-
-Skip invalid files and record them for the "skipped" section of the report.
-
-### Step 3: Version dedup
-
-Group skill files by suite + plugin name. Path structures vary — three known patterns:
-
-| Pattern | Example | Suite | Plugin |
-|---------|---------|-------|--------|
-| Standard | `cache/claude-plugins-official/superpowers/5.0.5/skills/X/SKILL.md` | `claude-plugins-official` | `superpowers` |
-| .claude nested | `cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/.claude/skills/X/SKILL.md` | `ui-ux-pro-max-skill` | `ui-ux-pro-max` |
-| Flat | `cache/anthropic-agent-skills/document-skills/b0cbd3df1533/skills/X/SKILL.md` | `anthropic-agent-skills` | `document-skills` |
-
-Extraction rule:
-- **Suite**: first path segment after `cache/`
-- **Plugin**: second path segment after suite
-
-If multiple versions exist for the same suite + plugin:
-- Semantic versions (e.g., `5.0.0`, `5.0.5`): keep the highest
-- Git hashes (e.g., `b0cbd3df1533`): keep the one whose directory has the newest mtime (check with `ls -ltd`)
-- Mixed: prefer semantic version over hash
-
-### Step 4: Build the index table
-
-For each valid, deduplicated skill, extract and format:
-```
-[N] name: <name> | suite: <suite> | path: <full-path>
+[N] name: <name> | suite: <suite> | plugin: <plugin>
     description: <description>
+    preview: <first 3 lines of body_preview>
 ```
 
-Concatenate all entries into a single index text block. Count total skills and suites.
+Count total skills and suites.
 
-### Step 5: Proceed to Phase 2
+### Step 4: Proceed to Phase 2
 
-Pass the complete index table to Phase 2. Read `references/analysis-prompts.md` for the subagent prompt templates.
+## Phase 2: Semantic Analysis (dispatch 2 parallel subagents)
 
-## Phase 2: Deep Analysis (dispatch 4 parallel subagents)
+Read `references/analysis-prompts.md` for the prompt templates.
 
-Read `references/analysis-prompts.md` to get the prompt templates for each subagent.
+Dispatch BOTH subagents in a SINGLE message using the Agent tool (runs in parallel):
 
-Dispatch ALL FOUR subagents in a SINGLE message using the Agent tool (this runs them in parallel):
-
-1. **Duplicate Detection Agent** — use the "Duplicate Detection Subagent" prompt template
+1. **Duplicate + Conflict Agent** — use the "Duplicate & Conflict Detection Subagent" prompt template
 2. **Overlap Detection Agent** — use the "Overlap Detection Subagent" prompt template
-3. **Conflict Detection Agent** — use the "Conflict Detection Subagent" prompt template
-4. **Stale Detection Agent** — use the "Stale Detection Subagent" prompt template
 
 For each subagent:
-- Replace `{INDEX_TABLE}` in the prompt with the actual index table from Phase 1
+- Replace `{INDEX_TABLE}` with the semantic index from Phase 1
 - Set `subagent_type` to `general-purpose`
-- The subagent will return a JSON result
 
-Wait for all 4 subagents to complete before proceeding to Phase 3.
+Wait for both subagents to complete before proceeding to Phase 3.
 
 ## Phase 3: Merge Results & Generate Report
 
-### Step 1: Parse subagent results
+### Step 1: Parse and merge all findings
 
-Extract the JSON from each subagent's response. Each should match this schema:
+Combine findings from three sources:
+1. `findings` array from scan.py output (mechanical issues — already confirmed, no re-analysis needed)
+2. Duplicate + Conflict subagent JSON result
+3. Overlap subagent JSON result
 
-```json
-{
-  "type": "duplicate|overlap|conflict|stale",
-  "findings": [
-    {
-      "id": "X-N",
-      "severity": "critical|warning|info",
-      "skills": ["skill-a (suite-a)", "skill-b (suite-b)"],
-      "reason": "...",
-      "recommendation": "...",
-      "details": {}
-    }
-  ]
-}
-```
+Dedup: if the same skill pair appears in both semantic subagents, keep the higher severity finding.
 
 ### Step 2: Merge and deduplicate
 
-If two subagents flagged the same skill pair (e.g., overlap detector and conflict detector both flagged skill-a vs skill-b), keep the finding with the higher severity.
+If two subagents flagged the same skill pair, keep the finding with the higher severity.
 
 ### Step 3: Sort by severity
 
