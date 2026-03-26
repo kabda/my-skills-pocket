@@ -3,10 +3,10 @@
   "description": "Audits installed Claude Code skills for duplicates, overlaps, conflicts, and stale entries",
   "version": "1.0.0",
   "author": {
-    "name": "fanyuandong"
+    "name": "kabda"
   },
-  "homepage": "https://github.com/fanyuandong/my-skills-pocket/tree/main/plugins/skill-governor",
-  "repository": "https://github.com/fanyuandong/my-skills-pocket",
+  "homepage": "https://github.com/kabda/my-skills-pocket/tree/main/plugins/skill-governor",
+  "repository": "https://github.com/kabda/my-skills-pocket",
   "license": "MIT",
   "keywords": ["skill", "audit", "quality", "governance", "diagnostics"]
 }

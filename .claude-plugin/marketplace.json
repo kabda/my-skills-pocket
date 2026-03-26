@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "my-skills-pocket",
-  "description": "Personal Claude Code plugin collection by fanyuandong",
-  "owner": { "name": "fanyuandong" },
+  "description": "Personal Claude Code plugin collection by kabda",
+  "owner": { "name": "kabda" },
   "plugins": [
     {
       "name": "skill-governor",

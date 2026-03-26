@@ -37,8 +37,8 @@ The registry file Claude Code reads to discover plugins.
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "my-skills-pocket",
-  "description": "Personal Claude Code plugin collection by fanyuandong",
-  "owner": { "name": "fanyuandong" },
+  "description": "Personal Claude Code plugin collection by kabda",
+  "owner": { "name": "kabda" },
   "plugins": [
     {
       "name": "plugin-name",
@@ -62,10 +62,10 @@ Plugin metadata. Required fields: `name`, `description`. Recommended: `version` 
   "description": "What this plugin does",
   "version": "1.0.0",
   "author": {
-    "name": "fanyuandong"
+    "name": "kabda"
   },
-  "homepage": "https://github.com/fanyuandong/my-skills-pocket/tree/main/plugins/plugin-name",
-  "repository": "https://github.com/fanyuandong/my-skills-pocket",
+  "homepage": "https://github.com/kabda/my-skills-pocket/tree/main/plugins/plugin-name",
+  "repository": "https://github.com/kabda/my-skills-pocket",
   "license": "MIT",
   "keywords": ["skills", "productivity"]
 }
@@ -101,7 +101,7 @@ Add to `~/.claude/settings.json`:
   "my-skills-pocket": {
     "source": {
       "source": "github",
-      "repo": "fanyuandong/my-skills-pocket"
+      "repo": "kabda/my-skills-pocket"
     }
   }
 }

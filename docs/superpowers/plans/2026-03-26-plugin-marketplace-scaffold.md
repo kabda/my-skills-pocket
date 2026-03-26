@@ -29,8 +29,8 @@ Create `.claude-plugin/marketplace.json`:
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "my-skills-pocket",
-  "description": "Personal Claude Code plugin collection by fanyuandong",
-  "owner": { "name": "fanyuandong" },
+  "description": "Personal Claude Code plugin collection by kabda",
+  "owner": { "name": "kabda" },
   "plugins": []
 }
 ```
@@ -79,10 +79,10 @@ mkdir -p plugins/example-plugin/hooks
   "description": "Template plugin — copy this directory to create a new plugin",
   "version": "1.0.0",
   "author": {
-    "name": "fanyuandong"
+    "name": "kabda"
   },
-  "homepage": "https://github.com/fanyuandong/my-skills-pocket/tree/main/plugins/example-plugin",
-  "repository": "https://github.com/fanyuandong/my-skills-pocket",
+  "homepage": "https://github.com/kabda/my-skills-pocket/tree/main/plugins/example-plugin",
+  "repository": "https://github.com/kabda/my-skills-pocket",
   "license": "MIT",
   "keywords": ["example", "template"]
 }
@@ -200,7 +200,7 @@ Add to `~/.claude/settings.json`:
   "my-skills-pocket": {
     "source": {
       "source": "github",
-      "repo": "fanyuandong/my-skills-pocket"
+      "repo": "kabda/my-skills-pocket"
     }
   }
 }
@@ -305,7 +305,7 @@ Expected: 6 commits visible (spec + spec-fix + marketplace + example-plugin + re
 git push -u origin main
 ```
 
-Then open `https://github.com/fanyuandong/my-skills-pocket` and verify the repo is visible.
+Then open `https://github.com/kabda/my-skills-pocket` and verify the repo is visible.
 
 - [ ] **Step 5: Test marketplace discovery in Claude Code**
 
@@ -315,7 +315,7 @@ Add to `~/.claude/settings.json` under `extraKnownMarketplaces`:
 "my-skills-pocket": {
   "source": {
     "source": "github",
-    "repo": "fanyuandong/my-skills-pocket"
+    "repo": "kabda/my-skills-pocket"
   }
 }
 ```

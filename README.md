@@ -7,7 +7,7 @@ Personal Claude Code plugin collection.
 ### Step 1: Add the marketplace
 
 ```
-/plugin marketplace add fanyuandong/my-skills-pocket
+/plugin marketplace add kabda/my-skills-pocket
 ```
 
 ### Step 2: Install a plugin
