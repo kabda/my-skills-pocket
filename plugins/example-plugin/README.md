@@ -29,4 +29,4 @@ Valid categories: `development`, `productivity`, `testing`, `design`, `deploymen
 - `commands/` — one file per slash command; filename = command name (no `/` prefix)
 - `agents/` — agent definition files
 - `hooks/` — hook scripts (must be explicitly registered in `plugin.json`)
-- `.mcp.json` ��� MCP server configuration
+- `.mcp.json` — MCP server configuration
