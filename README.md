@@ -4,30 +4,23 @@ Personal Claude Code plugin collection.
 
 ## Installation
 
-Add to `~/.claude/settings.json`:
-
-```json
-"extraKnownMarketplaces": {
-  "my-skills-pocket": {
-    "source": {
-      "source": "github",
-      "repo": "fanyuandong/my-skills-pocket"
-    }
-  }
-}
-```
-
-Then run `/plugin` in Claude Code to refresh the marketplace, and install a plugin:
+### Step 1: Add the marketplace
 
 ```
-/plugin install <plugin-name>@my-skills-pocket
+/plugin marketplace add fanyuandong/my-skills-pocket
+```
+
+### Step 2: Install a plugin
+
+```
+/plugin install skill-governor@my-skills-pocket
 ```
 
 ## Plugins
 
 | Name | Description | Category |
 |------|-------------|----------|
-| *(none yet)* | | |
+| [skill-governor](plugins/skill-governor/) | Audits installed Claude Code skills for duplicates, overlaps, conflicts, and stale entries | productivity |
 
 ## Adding a new plugin
 
