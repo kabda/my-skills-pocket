@@ -80,15 +80,11 @@ Combine findings from three sources:
 
 Dedup: if the same skill pair appears in both semantic subagents, keep the higher severity finding.
 
-### Step 2: Merge and deduplicate
-
-If two subagents flagged the same skill pair, keep the finding with the higher severity.
-
-### Step 3: Sort by severity
+### Step 2: Sort by severity
 
 Order: critical first, then warning, then info.
 
-### Step 4: Format and output the report
+### Step 3: Format and output the report
 
 **CRITICAL:** Copy ALL Chinese characters in this template VERBATIM. Do NOT retype or regenerate any Chinese text — transcription errors cause garbled output.
 
@@ -142,7 +138,7 @@ Output the report by filling in only the `{PLACEHOLDER}` values below. Repeat fi
 
 ### Zero-issues report
 
-If all 2 subagents return empty findings, output:
+If scan.py `findings` is empty AND both subagents return empty findings, output:
 
 ```
 ============================================================
