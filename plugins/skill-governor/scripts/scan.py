@@ -3,6 +3,10 @@
 import json, re
 from pathlib import Path
 
+# Note: project-level paths (.claude/settings.json, .claude/skills/, etc.)
+# are resolved relative to cwd at runtime. Run from the project root for
+# project-level settings to be discovered.
+
 HOME = Path.home()
 CLAUDE_DIR = HOME / ".claude"
 CACHE_DIR = CLAUDE_DIR / "plugins" / "cache"
