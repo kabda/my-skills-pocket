@@ -3,5 +3,12 @@
   "name": "my-skills-pocket",
   "description": "Personal Claude Code plugin collection by fanyuandong",
   "owner": { "name": "fanyuandong" },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "skill-governor",
+      "description": "Audits installed Claude Code skills for duplicates, overlaps, conflicts, and stale entries",
+      "source": "./plugins/skill-governor",
+      "category": "productivity"
+    }
+  ]
 }
