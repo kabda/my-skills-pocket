@@ -1,0 +1,12 @@
+{
+  "name": "example-plugin",
+  "description": "Template plugin — copy this directory to create a new plugin",
+  "version": "1.0.0",
+  "author": {
+    "name": "fanyuandong"
+  },
+  "homepage": "https://github.com/fanyuandong/my-skills-pocket/tree/main/plugins/example-plugin",
+  "repository": "https://github.com/fanyuandong/my-skills-pocket",
+  "license": "MIT",
+  "keywords": ["example", "template"]
+}
