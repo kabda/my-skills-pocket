@@ -10,6 +10,7 @@ from pathlib import Path
 HOME = Path.home()
 CLAUDE_DIR = HOME / ".claude"
 CACHE_DIR = CLAUDE_DIR / "plugins" / "cache"
+INSTALLED_PLUGINS_PATH = CLAUDE_DIR / "plugins" / "installed_plugins.json"
 
 
 def load_settings(path: Path) -> dict:
@@ -19,7 +20,52 @@ def load_settings(path: Path) -> dict:
         return {}
 
 
+def get_installed_plugins() -> list[dict]:
+    """Read installed plugins from installed_plugins.json (authoritative source).
+
+    Uses the exact installPath recorded at install time, so orphaned cache
+    entries that were never registered are automatically excluded.
+
+    Scope rules:
+    - user:    always active
+    - project: active only when cwd is within the recorded projectPath
+
+    Falls back to get_enabled_plugins() if installed_plugins.json is missing.
+    """
+    try:
+        data = json.loads(INSTALLED_PLUGINS_PATH.read_text())
+        cwd = Path.cwd().resolve()
+        seen, plugins = set(), []
+        for key, entries in data.get("plugins", {}).items():
+            if "@" not in key:
+                continue
+            plugin, suite = key.split("@", 1)
+            for entry in entries:
+                install_path = Path(entry.get("installPath", ""))
+                if not install_path.exists():
+                    continue  # installPath gone — orphaned entry, skip
+                scope = entry.get("scope", "user")
+                if scope == "project":
+                    project_path = Path(entry.get("projectPath", "")).resolve()
+                    try:
+                        cwd.relative_to(project_path)
+                    except ValueError:
+                        continue  # not inside this project's directory
+                if key not in seen:
+                    seen.add(key)
+                    plugins.append({
+                        "plugin": plugin,
+                        "suite": suite,
+                        "install_path": install_path,
+                        "source": str(INSTALLED_PLUGINS_PATH),
+                    })
+        return plugins
+    except Exception:
+        return get_enabled_plugins()
+
+
 def get_enabled_plugins() -> list[dict]:
+    """Fallback: read plugins from enabledPlugins in settings.json files."""
     sources = [CLAUDE_DIR / "settings.json", Path(".claude/settings.json"), Path(".claude/settings.local.json")]
     seen, plugins = set(), []
     for src in sources:
@@ -29,21 +75,6 @@ def get_enabled_plugins() -> list[dict]:
                 plugin, suite = key.split("@", 1)
                 plugins.append({"plugin": plugin, "suite": suite, "source": str(src)})
     return plugins
-
-
-def resolve_plugin_cache(plugin: str, suite: str) -> Path | None:
-    base = CACHE_DIR / suite / plugin
-    if not base.exists():
-        return None
-    versions = [d for d in base.iterdir() if d.is_dir()]
-    if not versions:
-        return None
-    def sort_key(p):
-        try:
-            return (1, tuple(int(x) for x in p.name.split(".")))
-        except ValueError:
-            return (0, (p.stat().st_mtime,))
-    return sorted(versions, key=sort_key)[-1]
 
 
 def _parse_yaml_description(fm: str) -> str | None:
@@ -92,9 +123,10 @@ def extract_frontmatter(path: Path) -> dict | None:
 def scan_skills_from_plugins(plugins: list[dict]) -> tuple[list[dict], list[dict]]:
     skills, skipped = [], []
     for p in plugins:
-        cache_dir = resolve_plugin_cache(p["plugin"], p["suite"])
-        if not cache_dir:
+        cache_dir = p.get("install_path")
+        if not cache_dir or not Path(cache_dir).exists():
             continue
+        cache_dir = Path(cache_dir)
         for pattern in ["skills/**/SKILL.md", ".claude/skills/**/SKILL.md"]:
             for skill_path in cache_dir.glob(pattern):
                 meta = extract_frontmatter(skill_path)
@@ -111,7 +143,9 @@ def scan_direct_skills() -> tuple[list[dict], list[dict]]:
     skills, skipped = [], []
     for base in [CLAUDE_DIR / "skills", Path(".claude/skills")]:
         if base.exists():
-            for skill_path in base.glob("**/SKILL.md"):
+            # Use */SKILL.md (one level deep) to avoid matching nested SKILL.md
+            # files inside subdirectories like .agents/skills/<name>/SKILL.md.
+            for skill_path in base.glob("*/SKILL.md"):
                 meta = extract_frontmatter(skill_path)
                 if meta.get("_skipped"):
                     skipped.append(meta)
@@ -129,9 +163,10 @@ def scan_commands(plugins: list[dict]) -> list[dict]:
             for f in base.glob("**/*.md"):
                 commands.append({"name": f.stem, "path": str(f), "suite": "direct"})
     for p in plugins:
-        cache_dir = resolve_plugin_cache(p["plugin"], p["suite"])
-        if not cache_dir:
+        cache_dir = p.get("install_path")
+        if not cache_dir or not Path(cache_dir).exists():
             continue
+        cache_dir = Path(cache_dir)
         for f in list(cache_dir.glob("commands/**/*.md")) + list(cache_dir.glob(".claude/commands/**/*.md")):
             commands.append({"name": f.stem, "path": str(f), "suite": p["suite"], "plugin": p["plugin"]})
     return commands
@@ -144,9 +179,10 @@ def scan_agents(plugins: list[dict]) -> list[dict]:
             for f in base.glob("**/*.md"):
                 agents.append({"name": f.stem, "path": str(f), "suite": "direct"})
     for p in plugins:
-        cache_dir = resolve_plugin_cache(p["plugin"], p["suite"])
-        if not cache_dir:
+        cache_dir = p.get("install_path")
+        if not cache_dir or not Path(cache_dir).exists():
             continue
+        cache_dir = Path(cache_dir)
         for f in list(cache_dir.glob("agents/**/*.md")) + list(cache_dir.glob(".claude/agents/**/*.md")):
             agents.append({"name": f.stem, "path": str(f), "suite": p["suite"], "plugin": p["plugin"]})
     return agents
@@ -250,7 +286,7 @@ def detect_mechanical_issues(skills: list[dict]) -> list[dict]:
 
 
 if __name__ == "__main__":
-    plugins = get_enabled_plugins()
+    plugins = get_installed_plugins()
     plugin_skills, plugin_skipped = scan_skills_from_plugins(plugins)
     direct_skills, direct_skipped = scan_direct_skills()
     skills = plugin_skills + direct_skills
@@ -259,8 +295,10 @@ if __name__ == "__main__":
     agents = scan_agents(plugins)
     hooks, mcps = scan_hooks_and_mcps()
     findings = detect_mechanical_issues(skills)
+    # Serialize install_path (Path) as string for JSON output
+    plugins_out = [{**p, "install_path": str(p["install_path"])} if "install_path" in p else p for p in plugins]
     print(json.dumps({
-        "plugins": plugins,
+        "plugins": plugins_out,
         "skills": skills,
         "commands": commands,
         "agents": agents,

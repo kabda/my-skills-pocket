@@ -26,6 +26,8 @@ python3 "$SCAN"
 python3 <path-to-skill-governor-plugin>/scripts/scan.py
 ~~~
 
+脚本以 `installed_plugins.json` 为权威数据源（而非裸扫 cache 目录），因此仅已注册安装的插件会被扫描——孤立的 cache 残留条目会被自动排除。
+
 脚本会输出一个 JSON 对象，包含：
 - `skills`：所有已安装 skill 的 `name`、`description`、`suite`、`plugin`、`path`、`body_preview`（frontmatter 后前 50 行）
 - `commands`、`agents`、`hooks`、`mcps`：其他已安装组件
