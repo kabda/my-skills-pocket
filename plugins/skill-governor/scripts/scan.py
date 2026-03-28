@@ -46,34 +46,51 @@ def resolve_plugin_cache(plugin: str, suite: str) -> Path | None:
     return sorted(versions, key=sort_key)[-1]
 
 
+def _parse_yaml_description(fm: str) -> str | None:
+    """Parse YAML description supporting single-line and multiline (>, |) formats."""
+    m = re.search(r'^description:\s*(.+)$', fm, re.MULTILINE)
+    if not m:
+        return None
+    first_line = m.group(1).strip().strip('"')
+    if first_line in (">", "|", ">-", "|-"):
+        lines = fm[m.end():].split("\n")
+        continued = []
+        for line in lines:
+            if line and not line[0].isspace():
+                break
+            continued.append(line.strip())
+        return " ".join(part for part in continued if part) or None
+    return first_line or None
+
+
 def extract_frontmatter(path: Path) -> dict | None:
     try:
         text = path.read_text(errors="replace")
     except Exception:
-        return None
+        return {"_skipped": True, "path": str(path), "reason": "无法读取文件"}
     if not text.startswith("---"):
-        return None
+        return {"_skipped": True, "path": str(path), "reason": "缺少 YAML frontmatter"}
     end = text.find("\n---", 3)
     if end == -1:
-        return None
+        return {"_skipped": True, "path": str(path), "reason": "YAML frontmatter 未闭合"}
     fm = text[3:end]
     name_m = re.search(r'^name:\s*(.+)$', fm, re.MULTILINE)
-    desc_m = re.search(r'^description:\s*(.+)$', fm, re.MULTILINE)
-    if not name_m or not desc_m:
-        return None
+    desc = _parse_yaml_description(fm)
+    if not name_m or not desc:
+        return {"_skipped": True, "path": str(path), "reason": "缺少 name 或 description 字段"}
     lines = text.splitlines()
     fm_end = next((i for i, l in enumerate(lines[1:], 1) if l.strip() == "---"), 0)
     body_preview = "\n".join(lines[fm_end + 1:fm_end + 51])
     return {
         "name": name_m.group(1).strip().strip('"'),
-        "description": desc_m.group(1).strip().strip('"'),
+        "description": desc,
         "path": str(path),
         "body_preview": body_preview,
     }
 
 
-def scan_skills_from_plugins(plugins: list[dict]) -> list[dict]:
-    skills = []
+def scan_skills_from_plugins(plugins: list[dict]) -> tuple[list[dict], list[dict]]:
+    skills, skipped = [], []
     for p in plugins:
         cache_dir = resolve_plugin_cache(p["plugin"], p["suite"])
         if not cache_dir:
@@ -81,24 +98,28 @@ def scan_skills_from_plugins(plugins: list[dict]) -> list[dict]:
         for pattern in ["skills/**/SKILL.md", ".claude/skills/**/SKILL.md"]:
             for skill_path in cache_dir.glob(pattern):
                 meta = extract_frontmatter(skill_path)
-                if meta:
+                if meta.get("_skipped"):
+                    skipped.append(meta)
+                else:
                     meta["suite"] = p["suite"]
                     meta["plugin"] = p["plugin"]
                     skills.append(meta)
-    return skills
+    return skills, skipped
 
 
-def scan_direct_skills() -> list[dict]:
-    skills = []
+def scan_direct_skills() -> tuple[list[dict], list[dict]]:
+    skills, skipped = [], []
     for base in [CLAUDE_DIR / "skills", Path(".claude/skills")]:
         if base.exists():
             for skill_path in base.glob("**/SKILL.md"):
                 meta = extract_frontmatter(skill_path)
-                if meta:
+                if meta.get("_skipped"):
+                    skipped.append(meta)
+                else:
                     meta["suite"] = "direct"
                     meta["plugin"] = skill_path.parent.name
                     skills.append(meta)
-    return skills
+    return skills, skipped
 
 
 def scan_commands(plugins: list[dict]) -> list[dict]:
@@ -144,8 +165,27 @@ def scan_hooks_and_mcps() -> tuple[list, list]:
     return hooks, mcps
 
 
+def _find_plugin_root(skill_path: Path) -> Path | None:
+    """Walk up from a SKILL.md to find the plugin root (contains .claude-plugin/)."""
+    current = skill_path.parent
+    for _ in range(10):
+        if (current / ".claude-plugin").exists():
+            return current
+        if current == current.parent:
+            break
+        current = current.parent
+    return None
+
+
 def detect_mechanical_issues(skills: list[dict]) -> list[dict]:
     findings = []
+    seen_ids: set[str] = set()
+
+    def _add(finding: dict) -> None:
+        if finding["id"] not in seen_ids:
+            seen_ids.add(finding["id"])
+            findings.append(finding)
+
     # D 类：同名跨套件（critical）
     by_name: dict[str, list] = {}
     for s in skills:
@@ -153,35 +193,68 @@ def detect_mechanical_issues(skills: list[dict]) -> list[dict]:
     for name, group in by_name.items():
         suites = {s["suite"] for s in group}
         if len(suites) > 1:
-            findings.append({
+            _add({
                 "id": f"D-auto-{name}",
                 "type": "duplicate",
                 "severity": "critical",
                 "skills": [f"{s['name']} ({s['suite']})" for s in group],
-                "reason": f"同名 skill '{name}' 存在于多个套件：{', '.join(suites)}",
+                "reason": f"同名 skill '{name}' 存在于多个套件：{', '.join(sorted(suites))}",
                 "recommendation": "保留一个为主，其余重命名或移除。",
             })
+
     # S 类：缺失引用文件（warning）
     for s in skills:
         skill_dir = Path(s["path"]).parent
+        plugin_root = _find_plugin_root(Path(s["path"]))
         for subdir in ["references", "scripts", "assets"]:
-            for match in re.finditer(rf'{subdir}/(\S+\.(?:md|py|js|sh|json))', s.get("body_preview", "")):
-                ref_file = skill_dir / subdir / match.group(1)
-                if not ref_file.exists():
-                    findings.append({
-                        "id": f"S-auto-ref-{s['name']}-{match.group(1)}",
+            for match in re.finditer(rf'{subdir}/([\w.-]+\.(?:md|py|js|sh|json))', s.get("body_preview", "")):
+                ref_name = match.group(1)
+                candidates = [skill_dir / subdir / ref_name]
+                if plugin_root:
+                    candidates.append(plugin_root / subdir / ref_name)
+                if not any(c.exists() for c in candidates):
+                    _add({
+                        "id": f"S-auto-ref-{s['name']}-{ref_name}",
                         "type": "stale",
                         "severity": "warning",
                         "skills": [f"{s['name']} ({s['suite']})"],
-                        "reason": f"SKILL.md 引用了不存在的文件：{subdir}/{match.group(1)}",
+                        "reason": f"SKILL.md 引用了不存在的文件：{subdir}/{ref_name}",
                         "recommendation": "创建缺失文件或移除引用。",
                     })
+
+    # Q 类：描述质量问题（info）
+    for s in skills:
+        desc = s.get("description", "")
+        name = s["name"]
+        suite = s["suite"]
+        if not re.search(r'[Uu]se when|用于当|当.*时使用', desc, re.IGNORECASE):
+            _add({
+                "id": f"Q-auto-trigger-{name}",
+                "type": "stale",
+                "severity": "info",
+                "skills": [f"{name} ({suite})"],
+                "reason": "description 中缺少触发条件（无 'Use when' 或等效模式）。",
+                "recommendation": "添加 'Use when <条件>' 触发模式，便于系统自动匹配。",
+            })
+        if len(desc) < 20:
+            _add({
+                "id": f"Q-auto-short-{name}",
+                "type": "stale",
+                "severity": "info",
+                "skills": [f"{name} ({suite})"],
+                "reason": f"description 过短（{len(desc)} 字符），难以判断触发场景。",
+                "recommendation": "扩展 description，包含具体使用场景和触发短语。",
+            })
+
     return findings
 
 
 if __name__ == "__main__":
     plugins = get_enabled_plugins()
-    skills = scan_skills_from_plugins(plugins) + scan_direct_skills()
+    plugin_skills, plugin_skipped = scan_skills_from_plugins(plugins)
+    direct_skills, direct_skipped = scan_direct_skills()
+    skills = plugin_skills + direct_skills
+    skipped = plugin_skipped + direct_skipped
     commands = scan_commands(plugins)
     agents = scan_agents(plugins)
     hooks, mcps = scan_hooks_and_mcps()
@@ -194,4 +267,5 @@ if __name__ == "__main__":
         "hooks": hooks,
         "mcps": mcps,
         "findings": findings,
+        "skipped": [{"path": s["path"], "reason": s["reason"]} for s in skipped],
     }, ensure_ascii=False, indent=2))

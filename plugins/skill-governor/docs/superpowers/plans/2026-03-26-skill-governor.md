@@ -1,6 +1,6 @@
 # Skill Governor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **历史文档**：本计划已执行完毕（2026-03-27），保留作为实现记录。后续变更请参考 git log。
 
 **Goal:** Build a diagnostic skill that audits all installed Claude Code skills for duplicates, overlaps, conflicts, and stale entries.
 

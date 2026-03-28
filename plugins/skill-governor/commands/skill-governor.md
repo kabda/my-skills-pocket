@@ -29,7 +29,8 @@ python3 <path-to-skill-governor-plugin>/scripts/scan.py
 脚本会输出一个 JSON 对象，包含：
 - `skills`：所有已安装 skill 的 `name`、`description`、`suite`、`plugin`、`path`、`body_preview`（frontmatter 后前 50 行）
 - `commands`、`agents`、`hooks`、`mcps`：其他已安装组件
-- `findings`：已自动检测出的机械性问题（如跨套件同名重复、引用文件缺失）
+- `findings`：已自动检测出的机械性问题（如跨套件同名重复、引用文件缺失、描述质量问题）
+- `skipped`：无法解析的 SKILL.md 文件（含 `path` 和 `reason`）
 
 ### 第 2 步：解析 JSON 输出
 
@@ -41,11 +42,12 @@ python3 <path-to-skill-governor-plugin>/scripts/scan.py
 
 ```
 [N] name: <name> | suite: <suite> | plugin: <plugin>
+    path: <path>
     description: <description>
     preview: <first 3 lines of body_preview>
 ```
 
-统计 skill 总数和 suite 总数。
+统计 skill 总数和 suite 总数。如果 `skipped` 数组非空，记录跳过文件数量。
 
 ### 第 4 步：进入阶段 2
 
@@ -55,8 +57,8 @@ python3 <path-to-skill-governor-plugin>/scripts/scan.py
 
 使用 Agent 工具在一条消息中同时派发以下两个 subagent（并行执行）：
 
-1. **重复 + 冲突 Agent**：使用 “Duplicate & Conflict Detection Subagent” 提示词模板
-2. **重叠检测 Agent**：使用 “Overlap Detection Subagent” 提示词模板
+1. **重复 + 冲突 Agent**：使用“重复与冲突检测 Subagent”提示词模板
+2. **重叠检测 Agent**：使用“重叠检测 Subagent”提示词模板
 
 对每个 subagent：
 - 用阶段 1 生成的语义索引替换 `{INDEX_TABLE}`
@@ -85,7 +87,9 @@ python3 <path-to-skill-governor-plugin>/scripts/scan.py
 
 **关键要求：** 模板文件中的所有中文必须逐字原样复制。不要重写，也不要重新生成中文内容，否则容易出现转写错误和乱码。
 
-输出报告时，只填写模板中的 `{PLACEHOLDER}`。每条 finding 都重复对应区块。没有内容的区块整体省略；如果 `SKIPPED` 为 0，则省略“已跳过的文件”区块。
+输出报告时，只填写模板中的 `{PLACEHOLDER}`。每条 finding 都重复对应区块。没有内容的区块整体省略。如果 `skipped` 数组为空，则省略”已跳过的文件”区块。
+
+**推荐操作摘要规则**：从所有 finding 的 recommendation 字段中去重，按严重等级（critical → warning → info）排列，编号输出。每条推荐前标注其严重等级。
 
 ### 零问题报告
 

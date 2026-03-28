@@ -1,44 +1,44 @@
-# Analysis Subagent Prompt Templates
+# 分析 Subagent 提示词模板
 
-Two subagents for semantic analysis. Mechanical issues (same-name duplicates, missing references) are already handled by scan.py — do NOT re-flag those here.
+用于语义分析的两个 subagent。机械性问题（同名重复、引用缺失）已经由 `scan.py` 处理，这里不要重复标记。
 
 ---
 
-## Duplicate & Conflict Detection Subagent
+## 重复与冲突检测 Subagent
 
-**Prompt template**:
+**提示词模板**：
 
 `````
-You are a skill duplicate and conflict detector. Analyze the following skill index.
+你是一名 skill 重复与冲突检测器。请分析以下 skill 索引。
 
-## Skill Index
+## Skill 索引
 {INDEX_TABLE}
 
-## Task 1: Semantic Duplicates
+## 任务 1：语义重复
 
-Flag pairs where two skills solve the same core task (>80% trigger overlap) but have different names.
-- Do NOT flag same-name cross-suite pairs (already detected by scan.py).
-- For each candidate pair, Read both SKILL.md files to confirm.
-- Only flag if the core task is genuinely identical — shared keywords alone are not enough.
+标记那些核心任务相同（触发场景重叠超过 80%）但名称不同的 skill 对。
+- 不要标记跨 suite 的同名配对（`scan.py` 已经检测过）。
+- 对每个候选配对，都要读取两个 `SKILL.md` 文件进行确认。
+- 只有在核心任务确实相同的情况下才标记，不能只因为共享关键词就判定重复。
 
-## Task 2: Conflicts
+## 任务 2：冲突
 
-Flag pairs that both claim authority over the same task type AND give contradictory instructions:
-- Different workflow steps or order
-- Different output formats or file locations
-- Opposite rules ("always do X" vs "never do X")
+标记那些同时声称负责同一种任务、并且给出相互矛盾指令的 skill 对：
+- 工作流步骤或顺序不同
+- 输出格式或文件位置不同
+- 规则相反（“总是做 X” 对 “绝不要做 X”）
 
-A conflict is NOT just overlap — it requires active contradiction.
+冲突不只是重叠，而是存在明确矛盾。
 
-For each candidate pair, Read both SKILL.md files and compare instructions line-by-line.
+对每个候选配对，都要读取两个 `SKILL.md` 文件，并逐行比较指令。
 
-## Budget
+## 预算
 
-Read at most 12 SKILL.md files total across both tasks.
+两个任务合计最多读取 12 个 `SKILL.md` 文件。
 
-## Output Format
+## 输出格式
 
-Return ONLY valid JSON:
+只返回合法 JSON：
 
 ```json
 {
@@ -66,40 +66,40 @@ Return ONLY valid JSON:
 }
 ```
 
-If nothing found: `{"type": "duplicate_conflict", "findings": []}`
+如果没有发现问题：`{"type": "duplicate_conflict", "findings": []}`
 `````
 
 ---
 
-## Overlap Detection Subagent
+## 重叠检测 Subagent
 
-**Prompt template**:
+**提示词模板**：
 
 `````
-You are a skill overlap detector. Analyze the following skill index for partially overlapping trigger conditions.
+你是一名 skill 重叠检测器。请分析以下 skill 索引，找出部分重叠的触发条件。
 
-## Skill Index
+## Skill 索引
 {INDEX_TABLE}
 
-## Detection Rules
+## 检测规则
 
-1. Two skills overlap when their descriptions suggest they would BOTH trigger for some user requests, but each also has unique scenarios the other does not cover.
-2. Overlap is distinct from duplicate: overlapping skills have different core purposes but share edge-case scenarios.
-3. If overlapping scenarios exceed 50% of either skill's total trigger scenarios, severity = "critical"; otherwise "warning".
+1. 当两个 skill 的描述表明它们都会对某些用户请求触发，但彼此也各自覆盖对方不处理的独特场景时，就构成重叠。
+2. 重叠不同于重复：重叠 skill 的核心目的不同，但共享部分边缘场景。
+3. 如果重叠场景超过任一 skill 总触发场景的 50%，严重等级为 `"critical"`；否则为 `"warning"`。
 
-## Process
+## 过程
 
-1. Identify pairs whose descriptions share trigger keywords or scenarios.
-2. For each candidate pair, Read both SKILL.md files to understand full scope.
-3. List specific overlapping scenarios and each skill's unique scenarios.
+1. 找出描述中共享触发关键词或场景的 skill 对。
+2. 对每个候选配对，读取两个 `SKILL.md` 文件以理解完整边界。
+3. 列出具体的重叠场景，以及每个 skill 各自独有的场景。
 
-## Budget
+## 预算
 
-Read at most 10 SKILL.md files total.
+最多读取 10 个 `SKILL.md` 文件。
 
-## Output Format
+## 输出格式
 
-Return ONLY valid JSON:
+只返回合法 JSON：
 
 ```json
 {
@@ -120,5 +120,5 @@ Return ONLY valid JSON:
 }
 ```
 
-If nothing found: `{"type": "overlap", "findings": []}`
+如果没有发现问题：`{"type": "overlap", "findings": []}`
 `````

@@ -1,3 +1,6 @@
 .DS_Store
 *.swp
 *.swo
+__pycache__/
+*.pyc
+plugins/skill-governor/scripts/__pycache__

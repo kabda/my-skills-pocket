@@ -1,5 +1,14 @@
 # Skill Governor — 设计规格
 
+> **注意**：本文档为初始设计稿（2026-03-26），部分内容已过时。
+> 实际实现与本文档的主要差异：
+> - 已从 4 个并行 subagent 优化为 2 个（重复+冲突合并，stale 机械检测移入 scan.py）
+> - 已从 SKILL.md 迁移为 command（`commands/skill-governor.md`）
+> - subagent 读取预算：重复+冲突 12 个文件，重叠 10 个文件（非原设计的各 15 个）
+> - 新增 `skipped` 输出、描述质量检测（Q-class）、SessionStart hook
+>
+> 以实际代码为准。
+
 ## 概述
 
 Skill Governor 是一个诊断型 skill，用于审计所有已安装的 Claude Code skill，检测四类问题：重复、重叠、冲突、失效。手动触发，仅报告不修改，输出结构化终端报告。

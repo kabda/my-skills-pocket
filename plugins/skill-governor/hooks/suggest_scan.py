@@ -150,10 +150,10 @@ def main() -> int:
 
     previous = load_json(STATE_PATH)
     current = build_snapshot(project_dir)
-    save_snapshot(current)
 
     diff = diff_snapshots(previous, current)
     if not previous or (not diff["plugins"] and not diff["skills"]):
+        save_snapshot(current)
         return 0
 
     print(
@@ -167,6 +167,7 @@ def main() -> int:
             ensure_ascii=False,
         )
     )
+    save_snapshot(current)
     return 0
 
 
