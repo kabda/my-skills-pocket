@@ -20,7 +20,7 @@ Personal Claude Code plugin collection.
 
 | Name | Description | Category |
 |------|-------------|----------|
-| [skill-governor](plugins/skill-governor/) | Audits installed Claude Code skills for duplicates, overlaps, conflicts, and stale entries | productivity |
+| [skill-governor](plugins/skill-governor/) | Manual slash command for auditing installed Claude Code skills for duplicates, overlaps, conflicts, and stale entries | productivity |
 
 ## Adding a new plugin
 

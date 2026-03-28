@@ -1,6 +1,6 @@
 {
   "name": "skill-governor",
-  "description": "Audits installed Claude Code skills for duplicates, overlaps, conflicts, and stale entries",
+  "description": "Manual slash command for auditing installed Claude Code skills for duplicates, overlaps, conflicts, and stale entries",
   "version": "1.0.0",
   "author": {
     "name": "kabda"
